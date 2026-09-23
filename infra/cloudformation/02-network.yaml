@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Internet Gateway e rede publica
+Resources:
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+    Properties:
+
+      Tags:
+
+        - Key: Name
+          Value: igw-projeto
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+
+    Properties:
+
+      VpcId:
+        Fn::ImportValue: Projeto-VpcId
+
+      InternetGatewayId:
+        Ref: InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+
+    Properties:
+
+      VpcId:
+        Fn::ImportValue: Projeto-VpcId
+
+      CidrBlock: 10.0.0.0/26
+
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: !Ref AWS::Region
+
+      MapPublicIpOnLaunch: true
+
+      Tags:
+
+        - Key: Name
+          Value: subnet-publica
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+
+    Properties:
+
+      VpcId:
+        Fn::ImportValue: Projeto-VpcId
+
+      Tags:
+
+        - Key: Name
+          Value: rt-publica
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+
+    DependsOn:
+      - InternetGatewayAttachment
+
+    Properties:
+
+      RouteTableId:
+        Ref: PublicRouteTable
+
+      DestinationCidrBlock: 0.0.0.0/0
+
+      GatewayId:
+        Ref: InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+    Properties:
+
+      SubnetId:
+        Ref: PublicSubnet
+
+      RouteTableId:
+        Ref: PublicRouteTable
+
+Outputs:
+
+  PublicSubnetId:
+
+    Description: ID da subnet publica
+
+    Value:
+      Ref: PublicSubnet
+
+    Export:
+      Name: Projeto-PublicSubnetId
