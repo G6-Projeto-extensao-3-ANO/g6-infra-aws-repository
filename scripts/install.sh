@@ -51,12 +51,10 @@ docker run -d \
 echo "Aguardando inicialização (30 segundos)"
 sleep 30
 
-docker exec -u 0 -it kali-lab apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys ED65462EC8D5E4C5
+docker exec -u 0 kali-lab sh -c "echo 'kasm_user:urubu100' | chpasswd"
+docker exec -u 0 kali-lab sh -c "echo 'kasm_user ALL=(ALL) ALL' >> /etc/sudoers"
+docker exec -u 0 kali-lab sh -c "echo 'kasm-user:urubu100' | chpasswd"
+docker exec -u 0 kali-lab sh -c "echo 'kasm-user ALL=(ALL) ALL' >> /etc/sudoers"
 
-docker exec -u 0 -it kali-lab sh -c "echo 'kasm_user:urubu100' | chpasswd"
-docker exec -u 0 -it kali-lab sh -c "echo 'kasm_user ALL=(ALL) ALL' >> /etc/sudoers"
-docker exec -u 0 -it kali-lab sh -c "echo 'kasm-user:urubu100' | chpasswd"
-docker exec -u 0 -it kali-lab sh -c "echo 'kasm-user ALL=(ALL) ALL' >> /etc/sudoers"
-
-docker exec -u 0 -it kali-lab apt update
-docker exec -u 0 -it kali-lab apt install -y nmap autopsy sleuthkit hydra
+docker exec -u 0 kali-lab apt update
+docker exec -u 0 kali-lab apt install -y nmap autopsy sleuthkit hydra
