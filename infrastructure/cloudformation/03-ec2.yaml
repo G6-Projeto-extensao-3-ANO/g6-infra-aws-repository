@@ -7,7 +7,7 @@ Parameters:
 
   InstanceType:
     Type: String
-    Default: t3.micro
+    Default: t3.small
     AllowedValues:
       - t3.micro
       - t3.small
@@ -54,6 +54,14 @@ Resources:
 
       IamInstanceProfile:
         Ref: LabInstanceProfile
+
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
 
       Tags:
         - Key: Name
