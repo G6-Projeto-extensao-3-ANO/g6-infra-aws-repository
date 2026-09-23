@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC dedicada da aplicação
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+
+    Properties:
+
+      CidrBlock: 10.0.0.0/24
+
+      EnableDnsSupport: true
+
+      EnableDnsHostnames: true
+
+      Tags:
+        - Key: Name
+          Value: vpc-projeto
+
+Outputs:
+  VpcId:
+    Description: ID da VPC
+    Value: !Ref VPC
+
+    Export:
+      Name: Projeto-VpcId
