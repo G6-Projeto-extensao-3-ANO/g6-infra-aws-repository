@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >
+  Criação de 3 buckets S3 com retenção dos buckets após exclusão
+  da stack CloudFormation.
+
+Resources:
+
+  Bucket1:
+    Type: AWS::S3::Bucket
+
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+    Properties:
+      BucketName: g6-01-bucket-raw # Caio
+      # BucketName: g6-02-bucket-raw # Duda
+      # BucketName: g6-03-bucket-raw # Gui
+      # BucketName: g6-04-bucket-raw # Robert
+      # BucketName: g6-05-bucket-raw # Feitosa
+
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+      VersioningConfiguration:
+        Status: Enabled
+
+      Tags:
+        - Key: Ambiente
+          Value: Projeto
+
+        - Key: Tipo
+          Value: Raw
+
+
+  Bucket2:
+    Type: AWS::S3::Bucket
+
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+    Properties:
+      BucketName: g6-01-bucket-trusted # Caio
+      # BucketName: g6-02-bucket-trusted # Duda
+      # BucketName: g6-03-bucket-trusted # Gui
+      # BucketName: g6-04-bucket-trusted # Robert
+      # BucketName: g6-05-bucket-trusted # Feitosa
+
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+      VersioningConfiguration:
+        Status: Enabled
+
+      Tags:
+        - Key: Ambiente
+          Value: Projeto
+
+        - Key: Tipo
+          Value: Stage
+
+
+  Bucket3:
+    Type: AWS::S3::Bucket
+
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+    Properties:
+      BucketName: g6-01-bucket-client # Caio
+      # BucketName: g6-02-bucket-client # Duda
+      # BucketName: g6-03-bucket-client # Gui
+      # BucketName: g6-04-bucket-client # Robert
+      # BucketName: g6-05-bucket-client # Feitosa
+
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+      VersioningConfiguration:
+        Status: Enabled
+
+      Tags:
+        - Key: Ambiente
+          Value: Projeto
+
+        - Key: Tipo
+          Value: Trusted

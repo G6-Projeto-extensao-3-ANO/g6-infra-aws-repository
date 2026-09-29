@@ -1,13 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Internet Gateway e rede publica
+
+Description: Internet Gateway e redes publica e privada
+
 Resources:
   InternetGateway:
     Type: AWS::EC2::InternetGateway
 
     Properties:
-
       Tags:
-
         - Key: Name
           Value: igw-projeto
 
@@ -15,7 +15,6 @@ Resources:
     Type: AWS::EC2::VPCGatewayAttachment
 
     Properties:
-
       VpcId:
         Fn::ImportValue: Projeto-VpcId
 
@@ -26,7 +25,6 @@ Resources:
     Type: AWS::EC2::Subnet
 
     Properties:
-
       VpcId:
         Fn::ImportValue: Projeto-VpcId
 
@@ -40,7 +38,6 @@ Resources:
       MapPublicIpOnLaunch: true
 
       Tags:
-
         - Key: Name
           Value: subnet-publica
 
@@ -48,23 +45,20 @@ Resources:
     Type: AWS::EC2::RouteTable
 
     Properties:
-
       VpcId:
         Fn::ImportValue: Projeto-VpcId
 
       Tags:
-
         - Key: Name
           Value: rt-publica
 
-  DefaultRoute:
+  PublicDefaultRoute:
     Type: AWS::EC2::Route
 
     DependsOn:
       - InternetGatewayAttachment
 
     Properties:
-
       RouteTableId:
         Ref: PublicRouteTable
 
@@ -73,25 +67,74 @@ Resources:
       GatewayId:
         Ref: InternetGateway
 
+
   PublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
 
     Properties:
-
       SubnetId:
         Ref: PublicSubnet
 
       RouteTableId:
         Ref: PublicRouteTable
 
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+
+    Properties:
+      VpcId:
+        Fn::ImportValue: Projeto-VpcId
+
+      CidrBlock: 10.0.0.64/26
+
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: !Ref AWS::Region
+
+      MapPublicIpOnLaunch: false
+
+      Tags:
+        - Key: Name
+          Value: subnet-privada
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+
+    Properties:
+      VpcId:
+        Fn::ImportValue: Projeto-VpcId
+
+      Tags:
+        - Key: Name
+          Value: rt-privada
+
+
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet
+
+      RouteTableId:
+        Ref: PrivateRouteTable
+
 Outputs:
 
   PublicSubnetId:
-
     Description: ID da subnet publica
-
     Value:
       Ref: PublicSubnet
 
     Export:
       Name: Projeto-PublicSubnetId
+
+
+  PrivateSubnetId:
+    Description: ID da subnet privada
+    Value:
+      Ref: PrivateSubnet
+
+    Export:
+      Name: Projeto-PrivateSubnetId
