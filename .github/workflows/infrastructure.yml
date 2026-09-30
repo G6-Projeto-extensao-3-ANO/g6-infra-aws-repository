@@ -43,20 +43,20 @@ jobs:
       - name: Deploy VPC
         run: |
           aws cloudformation deploy \
-            --stack-name projeto-vpc \
+            --stack-name G6-vpc \
             --template-file infrastructure/cloudformation/01-vpc.yaml \
             --region us-east-1
 
       - name: Deploy Network
         run: |
           aws cloudformation deploy \
-            --stack-name projeto-network \
+            --stack-name G6-network \
             --template-file infrastructure/cloudformation/02-network.yaml \
             --region us-east-1
 
       - name: Deploy S3
         run: |
           aws cloudformation deploy \
-            --stack-name projeto-s3 \
+            --stack-name G6-s3 \
             --template-file infrastructure/cloudformation/03-s3.yaml \
             --region us-east-1
