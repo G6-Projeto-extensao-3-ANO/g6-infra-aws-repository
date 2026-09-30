@@ -14,7 +14,7 @@ Resources:
 
       Tags:
         - Key: Name
-          Value: vpc-projeto
+          Value: G6-vpc
 
 Outputs:
   VpcId:
@@ -22,4 +22,4 @@ Outputs:
     Value: !Ref VPC
 
     Export:
-      Name: Projeto-VpcId
+      Name: G6-VpcId
