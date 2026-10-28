@@ -16,6 +16,6 @@ Resources:
 
 Outputs:
 
-  SNSTopicArn:
+  SNSTopicArn:  
     Description: ARN do tópico SNS
     Value: !Ref EmailSNSTopic
