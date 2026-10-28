@@ -34,11 +34,25 @@ jobs:
           aws cloudformation validate-template \
             --template-body file://infrastructure/cloudformation/02-network.yaml
 
-
       - name: Validar S3
         run: |
           aws cloudformation validate-template \
             --template-body file://infrastructure/cloudformation/03-s3.yaml
+
+      - name: Validar SNS
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://infrastructure/cloudformation/04-message.yaml
+
+      - name: Validar SNS
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://infrastructure/cloudformation/05-secrets.yaml
+
+      - name: Validar Catalogo
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://infrastructure/cloudformation/06-catalog.yaml
 
       - name: Deploy VPC
         run: |
@@ -59,4 +73,39 @@ jobs:
           aws cloudformation deploy \
             --stack-name G6-s3 \
             --template-file infrastructure/cloudformation/03-s3.yaml \
+            --region us-east-1
+
+      - name: Deploy SNS
+        run: |
+          aws cloudformation deploy \
+            --stack-name G6-sns \
+            --template-file infrastructure/cloudformation/04-message.yaml \
+            --region us-east-1
+
+      - name: Deploy SSM
+        run: |
+          aws cloudformation deploy \
+            --stack-name G6-ssm \
+            --template-file infrastructure/cloudformation/05-secrets.yaml \
+            --region us-east-1
+
+      - name: Deploy Catalog
+        run: |
+          BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name G6-s3 \
+            --region us-east-1 \
+            --query "Stacks[0].Outputs[?OutputKey=='Bucket1Name'].OutputValue" \
+            --output text)
+
+          if [ -z "$BUCKET_NAME" ] || [ "$BUCKET_NAME" = "None" ]; then
+            echo "Erro: não foi possível obter o nome do bucket1 da stack G6-s3."
+            exit 1
+          fi
+
+          echo "Bucket de resultados do Athena: $BUCKET_NAME"
+
+          aws cloudformation deploy \
+            --stack-name G6-catalog \
+            --template-file infrastructure/cloudformation/06-catalog.yaml \
+            --parameter-overrides AthenaResultsBucket="$BUCKET_NAME" \
             --region us-east-1

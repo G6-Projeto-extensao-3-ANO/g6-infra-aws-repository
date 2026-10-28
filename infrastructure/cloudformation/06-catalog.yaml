@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >
+  AWS Glue Data Catalog + Athena WorkGroup utilizando a LabRole existente
+
+Parameters:
+  LabRoleName:
+    Type: String
+    Default: LabRole
+    Description: Nome da IAM Role existente utilizada no ambiente AWS Academy
+
+  AthenaResultsBucket:
+    Type: String
+    Description: Nome de um bucket S3 existente para armazenar os resultados do Athena
+
+Resources:
+
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: g6_glue_catalog
+        Description: >
+          Database para catalogação de dados utilizando AWS Glue Data Catalog
+          e consultas pelo Amazon Athena
+
+  AthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: glue-athena-workgroup
+
+      Description: >
+        WorkGroup Athena utilizando o Glue Data Catalog
+        e a LabRole existente
+
+      State: ENABLED
+
+      WorkGroupConfiguration:
+        ResultConfiguration:
+          OutputLocation: !Sub s3://${AthenaResultsBucket}/results/
+
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+
+Outputs:
+
+  GlueDatabase:
+    Description: Nome do Glue Database criado
+    Value: !Ref GlueDatabase
+
+  GlueCatalogId:
+    Description: ID da conta AWS utilizada pelo Glue Data Catalog
+    Value: !Ref AWS::AccountId
+
+  AthenaWorkGroup:
+    Description: Nome do Athena WorkGroup criado
+    Value: !Ref AthenaWorkGroup
+
+  AthenaResultsLocation:
+    Description: Local de armazenamento dos resultados das consultas
+    Value: !Sub s3://${AthenaResultsBucket}/results/
+
+  LabRoleName:
+    Description: Role existente a ser utilizada nas operações
+    Value: !Ref LabRoleName

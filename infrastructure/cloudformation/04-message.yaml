@@ -1,0 +1,21 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SNS para envio de emails
+Resources:
+  EmailSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: g6-email-notifications
+      DisplayName: Projeto Email Notifications
+
+  EmailSNSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref EmailSNSTopic
+      Protocol: email
+      Endpoint: caio.visconti@sptech.school
+
+Outputs:
+
+  SNSTopicArn:  
+    Description: ARN do tópico SNS
+    Value: !Ref EmailSNSTopic

@@ -94,3 +94,16 @@ Resources:
 
         - Key: Tipo
           Value: Trusted
+
+Outputs:
+  Bucket1Name:
+    Description: Nome do bucket S3 bucket1
+    Value: !Ref Bucket1
+    
+  Bucket2Name:
+    Description: Nome do bucket S3 bucket2
+    Value: !Ref Bucket2
+    
+  Bucket3Name:
+    Description: Nome do bucket S3 bucket3
+    Value: !Ref Bucket3
