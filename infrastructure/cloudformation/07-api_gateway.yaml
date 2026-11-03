@@ -1,11 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
-
-Description: >
-  API Gateway REST publica integrada ao bucket S3 RAW existente.
-  Recebe arquivos JSON por PUT e grava os objetos no bucket informado.
+Description: API Gateway REST publica integrada ao bucket S3 RAW existente. Recebe arquivos JSON por PUT e grava os objetos no bucket informado.
 
 Parameters:
-
   BucketName:
     Type: String
     Description: Nome do bucket S3 existente, obtido da stack G6-s3.
@@ -24,7 +20,6 @@ Parameters:
     Description: Estagio de implantacao da API.
 
 Resources:
-
   ApiGatewayS3Role:
     Type: AWS::IAM::Role
     Properties:
@@ -63,18 +58,11 @@ Resources:
         - Key: Tipo
           Value: Integracao-Azure-AWS
 
-  BucketResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref RestApi
-      ParentId: !GetAtt RestApi.RootResourceId
-      PathPart: '{bucket}'
-
   FilenameResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref RestApi
-      ParentId: !Ref BucketResource
+      ParentId: !GetAtt RestApi.RootResourceId
       PathPart: '{filename}'
 
   UploadPutMethod:
@@ -84,27 +72,20 @@ Resources:
       ResourceId: !Ref FilenameResource
       HttpMethod: PUT
       AuthorizationType: NONE
-
       RequestParameters:
-        method.request.path.bucket: true
         method.request.path.filename: true
-
       Integration:
         Type: AWS
         IntegrationHttpMethod: PUT
         Credentials: !GetAtt ApiGatewayS3Role.Arn
-
-        Uri: !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}:s3:path/{bucket}/{key}'
-
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:s3:path/${Bucket}/{key}'
+          - Bucket: !Ref BucketName
         PassthroughBehavior: WHEN_NO_MATCH
-
         RequestParameters:
-          integration.request.path.bucket: method.request.path.bucket
           integration.request.path.key: method.request.path.filename
-
         IntegrationResponses:
           - StatusCode: '200'
-
       MethodResponses:
         - StatusCode: '200'
 
@@ -125,7 +106,6 @@ Resources:
       Description: Estagio de homologacao da API.
 
 Outputs:
-
   BucketName:
     Description: Bucket S3 existente utilizado pela API.
     Value: !Ref BucketName
@@ -140,16 +120,8 @@ Outputs:
 
   ApiInvokeUrl:
     Description: URL base para upload de arquivos.
-    Value: !Sub
-      - 'https://${ApiId}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/${Bucket}/{filename}'
-      - ApiId: !Ref RestApi
-        Stage: !Ref StageName
-        Bucket: !Ref BucketName
+    Value: !Sub 'https://${RestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}'
 
   ExampleCurl:
     Description: Exemplo de chamada para envio de arquivo JSON.
-    Value: !Sub
-      - 'curl -X PUT "https://${ApiId}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/${Bucket}/dados.json" -H "Content-Type: application/json" -T "dados.json"'
-      - ApiId: !Ref RestApi
-        Stage: !Ref StageName
-        Bucket: !Ref BucketName
+    Value: !Sub 'curl -X PUT "https://${RestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}/dados.json" -H "Content-Type: application/json" -T "dados.json"'
