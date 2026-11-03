@@ -9,7 +9,183 @@ on:
       - '.github/workflows/infrastructure.yml'
 
 jobs:
-  deploy-infrastructure:
+  deploy-infrAWSTemplateFormatVersion: '2010-09-09'
+
+Description: >
+  API Gateway REST publica integrada ao bucket S3 RAW existente.
+  Recebe arquivos JSON por PUT e grava os objetos no bucket informado.
+
+Parameters:
+
+  BucketName:
+    Type: String
+    Description: Nome do bucket S3 existente, obtido da stack G6-s3.
+    MinLength: 3
+    MaxLength: 63
+
+  ApiName:
+    Type: String
+    Default: azure-aws-api
+    Description: Nome da API REST.
+
+  StageName:
+    Type: String
+    Default: hmg
+    AllowedPattern: '[A-Za-z0-9_-]+'
+    Description: Estagio de implantacao da API.
+
+Resources:
+
+  # ------------------------------------------------------------
+  # IAM ROLE: API GATEWAY -> S3
+  # ------------------------------------------------------------
+  ApiGatewayS3Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Permite ao API Gateway gravar objetos no bucket S3 RAW existente.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowPutObjectInRawBucket
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowUploadToRawBucket
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${BucketName}/*'
+
+  # ------------------------------------------------------------
+  # API GATEWAY REST
+  # ------------------------------------------------------------
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Ref ApiName
+      Description: API REST para upload de arquivos JSON no bucket S3 RAW.
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      BinaryMediaTypes:
+        - application/json
+      Tags:
+        - Key: Ambiente
+          Value: Projeto
+        - Key: Tipo
+          Value: Integracao-Azure-AWS
+
+  # ------------------------------------------------------------
+  # RECURSO /{bucket}
+  # ------------------------------------------------------------
+  BucketResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: '{bucket}'
+
+  # ------------------------------------------------------------
+  # RECURSO /{bucket}/{filename}
+  # ------------------------------------------------------------
+  FilenameResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !Ref BucketResource
+      PathPart: '{filename}'
+
+  # ------------------------------------------------------------
+  # METODO PUT: API GATEWAY -> AMAZON S3
+  # ------------------------------------------------------------
+  UploadPutMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref FilenameResource
+      HttpMethod: PUT
+      AuthorizationType: NONE
+
+      RequestParameters:
+        method.request.path.bucket: true
+        method.request.path.filename: true
+
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: PUT
+        Credentials: !GetAtt ApiGatewayS3Role.Arn
+
+        Uri: !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}:s3:path/{bucket}/{key}'
+
+        PassthroughBehavior: WHEN_NO_MATCH
+
+        RequestParameters:
+          integration.request.path.bucket: method.request.path.bucket
+          integration.request.path.key: method.request.path.filename
+
+        IntegrationResponses:
+          - StatusCode: '200'
+
+      MethodResponses:
+        - StatusCode: '200'
+
+  # ------------------------------------------------------------
+  # DEPLOYMENT DA API
+  # ------------------------------------------------------------
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - UploadPutMethod
+    Properties:
+      RestApiId: !Ref RestApi
+      Description: Deploy da API de upload de arquivos JSON.
+
+  # ------------------------------------------------------------
+  # STAGE HMG
+  # ------------------------------------------------------------
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref RestApi
+      DeploymentId: !Ref ApiDeployment
+      StageName: !Ref StageName
+      Description: Estagio de homologacao da API.
+
+Outputs:
+
+  BucketName:
+    Description: Bucket S3 existente utilizado pela API.
+    Value: !Ref BucketName
+
+  ApiId:
+    Description: ID da API REST criada.
+    Value: !Ref RestApi
+
+  ApiExecutionRoleArn:
+    Description: ARN da IAM Role utilizada pelo API Gateway.
+    Value: !GetAtt ApiGatewayS3Role.Arn
+
+  ApiInvokeUrl:
+    Description: URL base para upload de arquivos.
+    Value: !Sub
+      - 'https://${ApiId}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/${Bucket}/{filename}'
+      - ApiId: !Ref RestApi
+        Stage: !Ref StageName
+        Bucket: !Ref BucketName
+
+  ExampleCurl:
+    Description: Exemplo de chamada para envio de arquivo JSON.
+    Value: !Sub
+      - 'curl -X PUT "https://${ApiId}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/${Bucket}/dados.json" -H "Content-Type: application/json" -T "dados.json"'
+      - ApiId: !Ref RestApi
+        Stage: !Ref StageName
+        Bucket: !Ref BucketName
+astructure:
     runs-on: ubuntu-latest
 
     steps:
@@ -108,4 +284,34 @@ jobs:
             --stack-name G6-catalog \
             --template-file infrastructure/cloudformation/06-catalog.yaml \
             --parameter-overrides AthenaResultsBucket="$BUCKET_NAME" \
+            --region us-east-1
+      
+      - name: Validar API Gateway S3
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://infrastructure/cloudformation/07-api-gateway-s3.yaml
+
+      - name: Deploy API Gateway S3
+        run: |
+          BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name G6-s3 \
+            --region us-east-1 \
+            --query "Stacks[0].Outputs[?OutputKey=='Bucket1Name'].OutputValue" \
+            --output text)
+
+          if [ -z "$BUCKET_NAME" ] || [ "$BUCKET_NAME" = "None" ]; then
+            echo "Erro: bucket RAW não encontrado na stack G6-s3."
+            exit 1
+          fi
+
+          echo "Utilizando bucket: $BUCKET_NAME"
+
+          aws cloudformation deploy \
+            --stack-name G6-api-gateway-s3 \
+            --template-file infrastructure/cloudformation/07-api-gateway-s3.yaml \
+            --parameter-overrides \
+              BucketName="$BUCKET_NAME" \
+              ApiName="azure-aws-api" \
+              StageName="hmg" \
+            --capabilities CAPABILITY_IAM \
             --region us-east-1
