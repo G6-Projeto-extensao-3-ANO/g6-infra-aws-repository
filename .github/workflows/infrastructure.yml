@@ -137,5 +137,5 @@ jobs:
               BucketName="$BUCKET_NAME" \
               ApiName="azure-aws-api" \
               StageName="hmg" \
-            --capabilities CAPABILITY_IAM \
+              ApiGatewayRoleArn="arn:aws:iam::332644049657:role/LabRole" \
             --region us-east-1
