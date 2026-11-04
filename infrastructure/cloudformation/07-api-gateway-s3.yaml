@@ -20,6 +20,11 @@ Parameters:
     Default: hmg
     AllowedPattern: '[A-Za-z0-9_-]+'
     Description: Estagio de implantacao da API.
+  
+  ApiGatewayRoleArn:
+    Type: String
+    Default: arn:aws:iam::332644049657:role/LabRole
+    Description: ARN da role IAM existente utilizada pelo API Gateway.
 
 Resources:
   ApiGatewayS3Role:
@@ -78,7 +83,7 @@ Resources:
       Integration:
         Type: AWS
         IntegrationHttpMethod: PUT
-        Credentials: !GetAtt ApiGatewayS3Role.Arn
+        Credentials: !Ref ApiGatewayRoleArn
         Uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:s3:path/${BucketName}/{key}
         PassthroughBehavior: WHEN_NO_MATCH
         RequestParameters:
