@@ -1,12 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  API Gateway REST publica integrada ao bucket S3 RAW existente.
+  API Gateway REST integrada ao bucket S3 RAW existente.
   Recebe arquivos JSON por PUT e grava os objetos no bucket informado.
 
 Parameters:
   BucketName:
     Type: String
-    Description: Nome do bucket S3 existente, obtido da stack G6-s3.
+    Description: Nome do bucket RAW existente, obtido da stack G6-s3.
     MinLength: 3
     MaxLength: 63
 
@@ -25,7 +25,7 @@ Resources:
   ApiGatewayS3Role:
     Type: AWS::IAM::Role
     Properties:
-      Description: Permite ao API Gateway gravar objetos no bucket S3 RAW existente.
+      Description: Permite ao API Gateway gravar objetos no bucket RAW.
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -38,13 +38,10 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Sid: AllowUploadToRawBucket
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - s3:PutObject
-                Resource: !Sub
-                  - arn:${AWS::Partition}:s3:::${BucketName}/*
-                  - BucketName: !Ref BucketName
+                Resource: !Sub arn:${AWS::Partition}:s3:::${BucketName}/*
 
   RestApi:
     Type: AWS::ApiGateway::RestApi
@@ -82,9 +79,7 @@ Resources:
         Type: AWS
         IntegrationHttpMethod: PUT
         Credentials: !GetAtt ApiGatewayS3Role.Arn
-        Uri: !Sub
-          - arn:${AWS::Partition}:apigateway:${AWS::Region}:s3:path/${Bucket}/{key}
-          - Bucket: !Ref BucketName
+        Uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:s3:path/${BucketName}/{key}
         PassthroughBehavior: WHEN_NO_MATCH
         RequestParameters:
           integration.request.path.key: method.request.path.filename
@@ -111,7 +106,7 @@ Resources:
 
 Outputs:
   BucketName:
-    Description: Bucket S3 existente utilizado pela API.
+    Description: Bucket S3 utilizado pela API.
     Value: !Ref BucketName
 
   ApiId:
@@ -132,8 +127,6 @@ Outputs:
   ExampleCurl:
     Description: Exemplo de chamada para envio de arquivo JSON.
     Value: !Sub
-      - >-
-        curl -X PUT "https://${ApiId}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/dados.json"
-        -H "Content-Type: application/json" -T "dados.json"
+      - curl -X PUT https://${ApiId}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/dados.json -H Content-Type:application/json -T dados.json
       - ApiId: !Ref RestApi
         Stage: !Ref StageName
