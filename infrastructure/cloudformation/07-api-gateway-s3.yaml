@@ -27,27 +27,6 @@ Parameters:
     Description: ARN da role IAM existente utilizada pelo API Gateway.
 
 Resources:
-  ApiGatewayS3Role:
-    Type: AWS::IAM::Role
-    Properties:
-      Description: Permite ao API Gateway gravar objetos no bucket RAW.
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: apigateway.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: AllowPutObjectInRawBucket
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                Resource: !Sub arn:${AWS::Partition}:s3:::${BucketName}/*
-
   RestApi:
     Type: AWS::ApiGateway::RestApi
     Properties:
@@ -119,8 +98,8 @@ Outputs:
     Value: !Ref RestApi
 
   ApiExecutionRoleArn:
-    Description: ARN da IAM Role utilizada pelo API Gateway.
-    Value: !GetAtt ApiGatewayS3Role.Arn
+    Description: ARN da IAM Role existente utilizada pelo API Gateway.
+    Value: !Ref ApiGatewayRoleArn
 
   ApiInvokeUrl:
     Description: URL base para upload de arquivos.
