@@ -13,6 +13,10 @@ Parameters:
     Type: String
     Description: Nome de um bucket S3 existente para armazenar os resultados do Athena
 
+  DataBucketRaw:
+    Type: String
+    Description: Bucket S3 que contém os arquivos históricos de telemetria
+
 Resources:
 
   GlueDatabase:
@@ -42,6 +46,50 @@ Resources:
 
         EnforceWorkGroupConfiguration: true
         PublishCloudWatchMetricsEnabled: true
+      
+    TelemetriaTable:
+      Type: AWS::Glue::Table
+      Properties:
+        CatalogId: !Ref AWS::AccountId
+        DatabaseName: !Ref GlueDatabase
+
+        TableInput:
+          Name: tb_raw_ingestions
+          Description: Tabela externa de telemetria armazenada no S3
+          TableType: EXTERNAL_TABLE
+
+          Parameters:
+            classification: parquet
+            EXTERNAL: "TRUE"
+            parquet.compression: SNAPPY
+
+          PartitionKeys:
+            - Name: ymd
+              Type: int
+              Comment: Data de referência no formato YYYYMMDD
+
+          StorageDescriptor:
+            Location: !Sub s3://${AthenaResultsBucket}/data/tb_raw_ingestions/
+            InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+
+            StoredAsSubDirectories: false
+
+            Columns:
+              - Name: registrado_em
+                Type: string
+
+              - Name: evento
+                Type: string
+
+              - Name: topico
+                Type: string
+
+              - Name: payload
+                Type: struct<metricas:struct<temperatura_arrefecimento:struct<>,rpm_motor:struct<>,temperatura_pressao_pneu:struct<>,temperatura_freio:struct<>>>
 
 Outputs:
 
