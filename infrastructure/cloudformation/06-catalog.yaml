@@ -85,6 +85,8 @@ Resources:
             - Name: topico
               Type: string
 
+            - Name: payload
+              Type: struct<metricas:struct<temperatura_arrefecimento:struct<>,rpm_motor:struct<>,temperatura_pressao_pneu:struct<>,temperatura_freio:struct<>>>
 Outputs:
 
   GlueDatabase:
