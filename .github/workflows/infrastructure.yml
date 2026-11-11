@@ -98,16 +98,19 @@ jobs:
             --output text)
 
           if [ -z "$BUCKET_NAME" ] || [ "$BUCKET_NAME" = "None" ]; then
-            echo "Erro: não foi possível obter o nome do bucket1 da stack G6-s3."
+            echo "Erro: não foi possível obter o bucket da stack G6-s3."
             exit 1
           fi
 
-          echo "Bucket de resultados do Athena: $BUCKET_NAME"
+          echo "Bucket RAW: $BUCKET_NAME"
+          echo "Bucket de resultados Athena: $BUCKET_NAME"
 
           aws cloudformation deploy \
             --stack-name G6-catalog \
             --template-file infrastructure/cloudformation/06-catalog.yaml \
-            --parameter-overrides AthenaResultsBucket="$BUCKET_NAME" \
+            --parameter-overrides \
+              AthenaResultsBucket="$BUCKET_NAME" \
+              DataBucketRaw="$BUCKET_NAME" \
             --region us-east-1
       
       - name: Validar API Gateway S3

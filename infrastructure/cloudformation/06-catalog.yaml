@@ -1,3 +1,4 @@
+
 AWSTemplateFormatVersion: '2010-09-09'
 
 Description: >
@@ -11,11 +12,11 @@ Parameters:
 
   AthenaResultsBucket:
     Type: String
-    Description: Nome de um bucket S3 existente para armazenar os resultados do Athena
+    Description: Bucket S3 para armazenar os resultados do Athena
 
   DataBucketRaw:
     Type: String
-    Description: Bucket S3 que contém os arquivos históricos de telemetria
+    Description: Bucket S3 que contém os arquivos RAW de telemetria
 
 Resources:
 
@@ -33,63 +34,56 @@ Resources:
     Type: AWS::Athena::WorkGroup
     Properties:
       Name: glue-athena-workgroup
-
       Description: >
         WorkGroup Athena utilizando o Glue Data Catalog
         e a LabRole existente
-
       State: ENABLED
-
       WorkGroupConfiguration:
         ResultConfiguration:
           OutputLocation: !Sub s3://${AthenaResultsBucket}/results/
-
         EnforceWorkGroupConfiguration: true
         PublishCloudWatchMetricsEnabled: true
-      
-    TelemetriaTable:
-      Type: AWS::Glue::Table
-      Properties:
-        CatalogId: !Ref AWS::AccountId
-        DatabaseName: !Ref GlueDatabase
 
-        TableInput:
-          Name: tb_raw_ingestions
-          Description: Tabela externa de telemetria armazenada no S3
-          TableType: EXTERNAL_TABLE
+  TbRawIngestions:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
 
-          Parameters:
-            classification: parquet
-            EXTERNAL: "TRUE"
-            parquet.compression: SNAPPY
+      TableInput:
+        Name: tb_raw_ingestions
+        Description: Tabela externa de ingestões RAW de telemetria
+        TableType: EXTERNAL_TABLE
 
-          PartitionKeys:
-            - Name: ymd
-              Type: int
-              Comment: Data de referência no formato YYYYMMDD
+        Parameters:
+          classification: parquet
+          EXTERNAL: "TRUE"
+          parquet.compression: SNAPPY
 
-          StorageDescriptor:
-            Location: !Sub s3://${AthenaResultsBucket}/data/tb_raw_ingestions/
-            InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
-            OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+        PartitionKeys:
+          - Name: ymd
+            Type: int
+            Comment: Data de referência no formato YYYYMMDD
 
-            SerdeInfo:
-              SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+        StorageDescriptor:
+          Location: !Sub s3://${DataBucketRaw}/data/tb_raw_ingestions/
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
 
-            StoredAsSubDirectories: false
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
 
-            Columns:
-              - Name: registrado_em
-                Type: string
+          StoredAsSubDirectories: false
 
-              - Name: evento
-                Type: string
+          Columns:
+            - Name: registrado_em
+              Type: string
 
-              - Name: topico
-                Type: string
+            - Name: evento
+              Type: string
 
-              - Name: payload
-                Type: struct<metricas:struct<temperatura_arrefecimento:struct<>,rpm_motor:struct<>,temperatura_pressao_pneu:struct<>,temperatura_freio:struct<>>>
+            - Name: topico
+              Type: string
 
 Outputs:
 
@@ -109,6 +103,10 @@ Outputs:
     Description: Local de armazenamento dos resultados das consultas
     Value: !Sub s3://${AthenaResultsBucket}/results/
 
+  RawTableLocation:
+    Description: Local dos arquivos RAW de telemetria
+    Value: !Sub s3://${DataBucketRaw}/data/tb_raw_ingestions/
+
   LabRoleName:
-    Description: Role existente a ser utilizada nas operações
+    Description: Role existente utilizada nas operações
     Value: !Ref LabRoleName
