@@ -1,3 +1,4 @@
+
 name: Infrastructure
 
 on:
@@ -13,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -24,35 +26,23 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      - name: Validar VPC
+      - name: Validar templates
         run: |
-          aws cloudformation validate-template \
-            --template-body file://infrastructure/cloudformation/01-vpc.yaml
+          for TEMPLATE in \
+            01-vpc.yaml \
+            02-network.yaml \
+            03-s3.yaml \
+            04-message.yaml \
+            05-secrets.yaml \
+            06-catalog.yaml \
+            07-api-gateway-s3.yaml
+          do
+            echo "Validando $TEMPLATE..."
 
-      - name: Validar Network
-        run: |
-          aws cloudformation validate-template \
-            --template-body file://infrastructure/cloudformation/02-network.yaml
-
-      - name: Validar S3
-        run: |
-          aws cloudformation validate-template \
-            --template-body file://infrastructure/cloudformation/03-s3.yaml
-
-      - name: Validar SNS
-        run: |
-          aws cloudformation validate-template \
-            --template-body file://infrastructure/cloudformation/04-message.yaml
-
-      - name: Validar SNS
-        run: |
-          aws cloudformation validate-template \
-            --template-body file://infrastructure/cloudformation/05-secrets.yaml
-
-      - name: Validar Catalogo
-        run: |
-          aws cloudformation validate-template \
-            --template-body file://infrastructure/cloudformation/06-catalog.yaml
+            aws cloudformation validate-template \
+              --template-body "file://infrastructure/cloudformation/$TEMPLATE" \
+              --region us-east-1
+          done
 
       - name: Deploy VPC
         run: |
@@ -91,6 +81,65 @@ jobs:
 
       - name: Deploy Catalog
         run: |
+
+          RAW_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name G6-s3 \
+            --region us-east-1 \
+            --query "Stacks[0].Outputs[?OutputKey=='Bucket1Name'].OutputValue" \
+            --output text)
+
+          RESULTS_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name G6-s3 \
+            --region us-east-1 \
+            --query "Stacks[0].Outputs[?OutputKey=='Bucket2Name'].OutputValue" \
+            --output text)
+
+          if [ -z "$RAW_BUCKET" ] || [ "$RAW_BUCKET" = "None" ]; then
+            echo "Erro: bucket RAW não encontrado."
+            exit 1
+          fi
+
+          if [ -z "$RESULTS_BUCKET" ] || [ "$RESULTS_BUCKET" = "None" ]; then
+            echo "Erro: bucket de resultados não encontrado."
+            exit 1
+          fi
+
+          echo "Bucket RAW: $RAW_BUCKET"
+          echo "Bucket Athena: $RESULTS_BUCKET"
+
+          if ! aws cloudformation deploy \
+            --stack-name G6-catalog \
+            --template-file infrastructure/cloudformation/06-catalog.yaml \
+            --parameter-overrides \
+              DataBucketRaw="$RAW_BUCKET" \
+              AthenaResultsBucket="$RESULTS_BUCKET" \
+              GlueDatabaseName="g6_glue_catalog_caio_2026" \
+              AthenaWorkGroupName="g6-athena-workgroup-caio-2026" \
+            --region us-east-1; then
+
+            echo "Erro no deploy do catálogo."
+
+            echo "Consultando Change Sets..."
+
+            aws cloudformation list-change-sets \
+              --stack-name G6-catalog \
+              --region us-east-1 \
+              --output json || true
+
+            echo "Consulte os detalhes da validação no CloudFormation."
+
+            exit 1
+          fi
+
+      - name: Validar API Gateway S3
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://infrastructure/cloudformation/07-api-gateway-s3.yaml \
+            --region us-east-1
+
+      - name: Deploy API Gateway S3
+        run: |
+
           BUCKET_NAME=$(aws cloudformation describe-stacks \
             --stack-name G6-s3 \
             --region us-east-1 \
@@ -103,45 +152,6 @@ jobs:
           fi
 
           echo "Bucket utilizado: $BUCKET_NAME"
-
-          if ! aws cloudformation deploy \
-            --stack-name G6-catalog \
-            --template-file infrastructure/cloudformation/06-catalog.yaml \
-            --parameter-overrides \
-              AthenaResultsBucket="$BUCKET_NAME" \
-              DataBucketRaw="$BUCKET_NAME" \
-            --region us-east-1; then
-
-            echo "Falha no deploy. Consultando eventos do CloudFormation..."
-
-            aws cloudformation describe-events \
-              --stack-name G6-catalog \
-              --filters FailedEvents=true \
-              --region us-east-1 || true
-
-            exit 1
-          fi
-
-      
-      - name: Validar API Gateway S3
-        run: |
-          aws cloudformation validate-template \
-            --template-body file://infrastructure/cloudformation/07-api-gateway-s3.yaml
-
-      - name: Deploy API Gateway S3
-        run: |
-          BUCKET_NAME=$(aws cloudformation describe-stacks \
-            --stack-name G6-s3 \
-            --region us-east-1 \
-            --query "Stacks[0].Outputs[?OutputKey=='Bucket1Name'].OutputValue" \
-            --output text)
-
-          if [ -z "$BUCKET_NAME" ] || [ "$BUCKET_NAME" = "None" ]; then
-            echo "Erro: bucket RAW não encontrado na stack G6-s3."
-            exit 1
-          fi
-
-          echo "Utilizando bucket: $BUCKET_NAME"
 
           aws cloudformation deploy \
             --stack-name G6-api-gateway-s3 \
