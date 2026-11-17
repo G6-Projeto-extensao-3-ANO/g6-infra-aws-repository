@@ -2,57 +2,79 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
 Description: >
-  AWS Glue Data Catalog + Athena WorkGroup utilizando a LabRole existente
+  AWS Glue Data Catalog e Athena WorkGroup
+  utilizando buckets S3 existentes.
 
 Parameters:
-  LabRoleName:
-    Type: String
-    Default: LabRole
-    Description: Nome da IAM Role existente utilizada no ambiente AWS Academy
 
   AthenaResultsBucket:
     Type: String
-    Description: Bucket S3 para armazenar os resultados do Athena
+    Description: Bucket S3 para resultados das consultas Athena.
 
   DataBucketRaw:
     Type: String
-    Description: Bucket S3 que contém os arquivos RAW de telemetria
+    Description: Bucket S3 com os arquivos RAW de telemetria.
+
+  GlueDatabaseName:
+    Type: String
+    Default: g6_glue_catalog_caio_2026
+    Description: Nome exclusivo do Glue Database.
+
+  AthenaWorkGroupName:
+    Type: String
+    Default: g6-athena-workgroup-caio-2026
+    Description: Nome exclusivo do Athena WorkGroup.
 
 Resources:
 
   GlueDatabase:
     Type: AWS::Glue::Database
+
     Properties:
       CatalogId: !Ref AWS::AccountId
+
       DatabaseInput:
-        Name: g6_glue_catalog
+        Name: !Ref GlueDatabaseName
         Description: >
-          Database para catalogação de dados utilizando AWS Glue Data Catalog
-          e consultas pelo Amazon Athena
+          Database para catalogação de dados RAW
+          utilizando AWS Glue Data Catalog e Athena.
 
   AthenaWorkGroup:
     Type: AWS::Athena::WorkGroup
+
     Properties:
-      Name: glue-athena-workgroup
+      Name: !Ref AthenaWorkGroupName
+
       Description: >
-        WorkGroup Athena utilizando o Glue Data Catalog
-        e a LabRole existente
+        WorkGroup Athena integrado ao Glue Data Catalog.
+
       State: ENABLED
+
       WorkGroupConfiguration:
         ResultConfiguration:
-          OutputLocation: !Sub s3://${AthenaResultsBucket}/results/
+          OutputLocation: !Sub
+            - s3://${Bucket}/athena-results/
+            - Bucket: !Ref AthenaResultsBucket
+
         EnforceWorkGroupConfiguration: true
         PublishCloudWatchMetricsEnabled: true
 
   TbRawIngestions:
     Type: AWS::Glue::Table
+
+    DependsOn:
+      - GlueDatabase
+
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseName: !Ref GlueDatabase
 
       TableInput:
         Name: tb_raw_ingestions
-        Description: Tabela externa de ingestões RAW de telemetria
+
+        Description: >
+          Tabela externa de ingestões RAW de telemetria.
+
         TableType: EXTERNAL_TABLE
 
         Parameters:
@@ -63,11 +85,15 @@ Resources:
         PartitionKeys:
           - Name: ymd
             Type: int
-            Comment: Data de referência no formato YYYYMMDD
+            Comment: Data de referência no formato YYYYMMDD.
 
         StorageDescriptor:
-          Location: !Sub s3://${DataBucketRaw}/data/tb_raw_ingestions/
+          Location: !Sub
+            - s3://${Bucket}/data/tb_raw_ingestions/
+            - Bucket: !Ref DataBucketRaw
+
           InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+
           OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
 
           SerdeInfo:
@@ -86,29 +112,26 @@ Resources:
               Type: string
 
             - Name: payload
-              Type: struct<metricas:struct<temperatura_arrefecimento:struct<>,rpm_motor:struct<>,temperatura_pressao_pneu:struct<>,temperatura_freio:struct<>>>
+              Type: struct<metricas:struct<temperatura_arrefecimento:double,rpm_motor:double,temperatura_pressao_pneu:double,temperatura_freio:double>>
+
 Outputs:
 
   GlueDatabase:
-    Description: Nome do Glue Database criado
+    Description: Nome do Glue Database.
     Value: !Ref GlueDatabase
 
   GlueCatalogId:
-    Description: ID da conta AWS utilizada pelo Glue Data Catalog
+    Description: ID da conta AWS.
     Value: !Ref AWS::AccountId
 
   AthenaWorkGroup:
-    Description: Nome do Athena WorkGroup criado
+    Description: Nome do Athena WorkGroup.
     Value: !Ref AthenaWorkGroup
 
   AthenaResultsLocation:
-    Description: Local de armazenamento dos resultados das consultas
-    Value: !Sub s3://${AthenaResultsBucket}/results/
+    Description: Local dos resultados Athena.
+    Value: !Sub s3://${AthenaResultsBucket}/athena-results/
 
   RawTableLocation:
-    Description: Local dos arquivos RAW de telemetria
+    Description: Local dos arquivos RAW.
     Value: !Sub s3://${DataBucketRaw}/data/tb_raw_ingestions/
-
-  LabRoleName:
-    Description: Role existente utilizada nas operações
-    Value: !Ref LabRoleName
