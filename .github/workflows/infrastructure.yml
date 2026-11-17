@@ -98,20 +98,30 @@ jobs:
             --output text)
 
           if [ -z "$BUCKET_NAME" ] || [ "$BUCKET_NAME" = "None" ]; then
-            echo "Erro: não foi possível obter o bucket da stack G6-s3."
+            echo "Erro: bucket RAW não encontrado."
             exit 1
           fi
 
-          echo "Bucket RAW: $BUCKET_NAME"
-          echo "Bucket de resultados Athena: $BUCKET_NAME"
+          echo "Bucket utilizado: $BUCKET_NAME"
 
-          aws cloudformation deploy \
+          if ! aws cloudformation deploy \
             --stack-name G6-catalog \
             --template-file infrastructure/cloudformation/06-catalog.yaml \
             --parameter-overrides \
               AthenaResultsBucket="$BUCKET_NAME" \
               DataBucketRaw="$BUCKET_NAME" \
-            --region us-east-1
+            --region us-east-1; then
+
+            echo "Falha no deploy. Consultando eventos do CloudFormation..."
+
+            aws cloudformation describe-events \
+              --stack-name G6-catalog \
+              --filters FailedEvents=true \
+              --region us-east-1 || true
+
+            exit 1
+          fi
+
       
       - name: Validar API Gateway S3
         run: |
